@@ -58,6 +58,44 @@ impl TableExt for Table {
     } 
 }
 
+pub fn new_empty_cell(x: usize, y: usize) -> Cell {
+    return Cell{
+        generics: { GenericFields {
+            string_content: "".to_string(),
+            pos_x: x,
+            pos_y: y,
+            cell_type: CellType::Empty
+        }},
+        specs: SpecificCell::EmptyCell{}   
+    };
+} 
+
+pub fn new_numeric_cell(x: usize, y: usize, string_content: String, n: i32) -> Cell {
+    return Cell{
+        generics: { GenericFields {
+            string_content: string_content,
+            pos_x: x,
+            pos_y: y,
+            cell_type: CellType::Numeric
+        }},
+        specs: SpecificCell::NumericCell(NumericCell{
+            value: n
+        })
+    };
+} 
+
+pub fn new_text_cell(x: usize, y: usize, string_content: String) -> Cell {
+    return Cell{
+        generics: { GenericFields {
+            string_content: string_content,
+            pos_x: x,
+            pos_y: y,
+            cell_type: CellType::Text
+        }},
+        specs: SpecificCell::TextCell{}   
+    };
+} 
+
 impl ToString for CellType {
     fn to_string(&self) -> String {
       match self {

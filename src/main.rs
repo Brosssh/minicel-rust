@@ -6,11 +6,7 @@ pub mod utils;
 use crate::utils::StringExt;
 
 pub mod structs;
-use crate::structs::CellType;
-use crate::structs::Cell;
 use crate::structs::Table;
-use crate::structs::SpecificCell;
-use crate::structs::GenericFields;
 
 fn read_file(path :&str) -> std::io::Result<String> {
     let mut file = match File::open(&path) {
@@ -48,42 +44,22 @@ fn get_table_from_content(content :&str) -> std::io::Result<Table>{
 
             let cell_content = e.to_string().trim_whitespaces();
 
-            match cell_content.parse::<i32>() {
-                Ok(n) => row_cells.push(Cell{
-                    generics: { GenericFields {
-                        string_content: cell_content,
-                        pos_x: row,
-                        pos_y: col,
-                        cell_type: CellType::Numeric
-                    }},
-                    specs: SpecificCell::NumericCell(structs::NumericCell{
-                        value: n
-                    })
-                }),
-                Err(e) => row_cells.push(Cell{
-                    generics: { GenericFields {
-                        string_content: cell_content,
-                        pos_x: row,
-                        pos_y: col,
-                        cell_type: CellType::Text
-                    }},
-                    specs: SpecificCell::TextCell{}   
-                }),
-              }
-            
+            if cell_content.len() == 0{
+                row_cells.push(structs::new_empty_cell(row, col));
+            }else if cell_content.len() > 0 && cell_content.starts_with("="){
+                row_cells.push(structs::new_text_cell(row, col, cell_content));
+            } else {     
+                match cell_content.parse::<i32>() {
+                    Ok(n) => row_cells.push(structs::new_numeric_cell(row, col, cell_content, n)),
+                    Err(_) => row_cells.push(structs::new_text_cell(row, col, cell_content)),
+                }
+                
+            }
             last_col = col;
         }
 
         while last_col < size_x - 1 {
-            row_cells.push(Cell{
-                generics: { GenericFields {
-                    string_content: String::new(),
-                    pos_x: row,
-                    pos_y: last_col,
-                    cell_type: CellType::Empty
-                }},
-                specs: SpecificCell::EmptyCell{}
-            });
+            row_cells.push(structs::new_empty_cell(row, last_col));
             last_col+=1;
         }
         table.push(row_cells);
