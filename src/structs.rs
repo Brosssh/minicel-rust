@@ -4,22 +4,23 @@ pub enum CellType {
     Expression,
     Empty
 }
-
-pub struct TextCell{
-
-}
-
 pub struct NumericCell{
     pub value: i32,
 }
 
-pub struct ExpressionCell{
-    pub value: i32,
-    pub evaluated: bool
+pub enum BaseValueType{
+    i32,
+    String,
 }
 
-pub struct EmptyCell{
+pub enum BaseCells{
+    TextCell(),
+    NumericCell(NumericCell),
+}
 
+pub struct ExpressionCell{
+    pub value: Option<BaseCells>,
+    pub evaluated: bool
 }
 
 pub struct GenericFields{
@@ -30,8 +31,7 @@ pub struct GenericFields{
 }
 
 pub enum SpecificCell {
-    TextCell(),
-    NumericCell(NumericCell),
+    BaseCells(BaseCells),
     ExpressionCell(ExpressionCell),
     EmptyCell()
   }
@@ -58,6 +58,26 @@ impl TableExt for Table {
     } 
 }
 
+pub trait CellExt {
+    fn get_expr_value(&self) -> i32;
+}
+
+impl CellExt for Cell {
+
+    fn get_expr_value(&self) -> i32 {
+        match &self.specs {
+            SpecificCell::BaseCells(BaseCells::NumericCell(v)) => 
+            {
+                println!("get_expr_value {}", v.value);
+                return v.value;
+            }
+            other => {
+                return 0;
+            }
+        }
+    } 
+}
+
 pub fn new_empty_cell(x: usize, y: usize) -> Cell {
     return Cell{
         generics: { GenericFields {
@@ -78,9 +98,9 @@ pub fn new_numeric_cell(x: usize, y: usize, string_content: String, n: i32) -> C
             pos_y: y,
             cell_type: CellType::Numeric
         }},
-        specs: SpecificCell::NumericCell(NumericCell{
+        specs: SpecificCell::BaseCells(BaseCells::NumericCell(NumericCell{
             value: n
-        })
+        }))
     };
 } 
 
@@ -92,16 +112,31 @@ pub fn new_text_cell(x: usize, y: usize, string_content: String) -> Cell {
             pos_y: y,
             cell_type: CellType::Text
         }},
-        specs: SpecificCell::TextCell{}   
+        specs: SpecificCell::BaseCells(BaseCells::TextCell{})   
+    };
+} 
+
+pub fn new_expression_cell(x: usize, y: usize, string_content: String) -> Cell {
+    return Cell{
+        generics: { GenericFields {
+            string_content: string_content,
+            pos_x: x,
+            pos_y: y,
+            cell_type: CellType::Expression
+        }},
+        specs: SpecificCell::ExpressionCell(ExpressionCell{
+            evaluated: false,
+            value: None
+        })   
     };
 } 
 
 impl ToString for CellType {
     fn to_string(&self) -> String {
       match self {
-        CellType::Numeric => String::from("Numeric"),
+        CellType::Numeric => String::from("Num"),
         CellType::Text => String::from("Text"),  
-        CellType::Expression => String::from("Expression"),
+        CellType::Expression => String::from("Expr"),
         CellType::Empty => String::from("Empty")
       }
     }
