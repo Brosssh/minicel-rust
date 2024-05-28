@@ -5,11 +5,40 @@ pub enum CellType {
     Empty
 }
 
-pub struct Cell{
+pub struct TextCell{
+
+}
+
+pub struct NumericCell{
+    pub value: i32,
+}
+
+pub struct ExpressionCell{
+    pub value: i32,
+    pub evaluated: bool
+}
+
+pub struct EmptyCell{
+
+}
+
+pub struct GenericFields{
     pub pos_x: usize,
     pub pos_y: usize,
     pub string_content: String,
-    pub cell_type: CellType,
+    pub cell_type: CellType
+}
+
+pub enum SpecificCell {
+    TextCell(),
+    NumericCell(NumericCell),
+    ExpressionCell(ExpressionCell),
+    EmptyCell()
+  }
+
+pub struct Cell{
+    pub specs: SpecificCell,
+    pub generics: GenericFields,
 }
 
 pub struct Table{
@@ -20,14 +49,13 @@ pub struct Table{
 
 pub trait TableExt {
     fn at(&self, x: usize, y: usize) -> &Cell;
-    //fn dump_table(&self) -> None;
 }
 
 impl TableExt for Table {
 
     fn at(&self, x: usize, y: usize) -> &Cell {
         return &self.cells[x][y];
-    }  
+    } 
 }
 
 impl ToString for CellType {
@@ -43,7 +71,7 @@ impl ToString for CellType {
 
 impl std::fmt::Display for Cell {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}({})", self.cell_type.to_string(), self.string_content)
+        write!(f, "{}({})", self.generics.cell_type.to_string(), self.generics.string_content)
     }
 }
 
