@@ -8,7 +8,6 @@ use crate::utils::StringExt;
 pub mod structs;
 use crate::structs::Table;
 use crate::structs::TableExt;
-use crate::structs::CellExt;
 
 fn read_file(path :&str) -> std::io::Result<String> {
     let mut file = match File::open(&path) {
@@ -78,15 +77,38 @@ fn get_table_from_content(content :&str) -> std::io::Result<(Table, HashMap<Stri
     }, column_index))
 }
 
-fn eval_cell(left: String, table: &Table, col_index: &HashMap<String, usize>) -> i32{
+fn eval_cell(left: &String, table: &Table, col_index: &HashMap<String, usize>) -> i32{
     println!("Evaluating {left}");
     let (letter, n) = left.split_at(1);
     match col_index.get(letter){
         Some(&r) => {
             println!("Found letter {:?}, result {:?}", letter, r);
             let cell = table.at(n.parse::<usize>().unwrap(), r);
-            let value = cell.get_expr_value();
             println!("Found cell {}", cell);
+            let mut value = 0;
+            
+            match &cell.specs {
+                structs::SpecificCell::BaseCells(structs::BaseCells::NumericCell(v)) => 
+                {
+                    println!("get_expr_value {}", v.value);
+                    value = v.value;
+                },
+                structs::SpecificCell::ExpressionCell(v) => 
+                {
+                    if !v.value.is_none() {
+                        println!("get_expr_value {}", v.value.unwrap());
+                        value = v.value.unwrap();
+                    }
+                    else if !v.evaluated{
+                        value = eval_expr(&cell.generics.string_content[1..].to_string(), table, col_index);
+                    }else{
+                        //is evaluated but none value
+                        panic!("ERROR: could not evaluate cell {}", cell);
+                    }
+                },
+                _ => ()
+            }
+
             return value
         },
         None => {
@@ -96,17 +118,17 @@ fn eval_cell(left: String, table: &Table, col_index: &HashMap<String, usize>) ->
     }
 }
 
-fn eval_expr(e: String, table: &Table, col_index: &HashMap<String, usize>) -> i32{
+fn eval_expr(e: &String, table: &Table, col_index: &HashMap<String, usize>) -> i32{
     println!("Evaluatiing expr {}", e);
     let mut total = 0;
     match e.split_once("+") {
         Some((left, right)) => {
             println!("Splitting result : left {}, right {}",left, right);
-            total += eval_cell(left.to_string(), &table, &col_index);
-            total += eval_expr(right.to_string(), &table, &col_index);
+            total += eval_cell(&left.to_string(), &table, &col_index);
+            total += eval_expr(&right.to_string(), &table, &col_index);
     },
         None => {
-            total += eval_cell(e.to_string(), &table, &col_index)
+            total += eval_cell(&e.to_string(), &table, &col_index)
         }
     }
     println!("Result of expr {}: {}", e, total);
@@ -116,8 +138,14 @@ fn eval_expr(e: String, table: &Table, col_index: &HashMap<String, usize>) -> i3
 fn evaluate_expressions(table: Table, col_index: HashMap<String, usize>){    
     for el in table.cells.iter(){
         for e in el.iter(){
-            if matches!(e.generics.cell_type, structs::CellType::Expression){
-                let r = eval_expr(e.generics.string_content[1..].to_string(), &table, &col_index);
+            match &e.specs {
+                structs::SpecificCell::ExpressionCell(el) => 
+                {
+                    let r = eval_expr(&e.generics.string_content[1..].to_string(), &table, &col_index);
+                    println!("Cell {}: {}", e, r);
+                    //TODO table replacing
+                },
+                _ => ()            
             }
         }
     }

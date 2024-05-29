@@ -4,6 +4,8 @@ pub enum CellType {
     Expression,
     Empty
 }
+
+#[derive(PartialEq)]
 pub struct NumericCell{
     pub value: i32,
 }
@@ -13,13 +15,15 @@ pub enum BaseValueType{
     String,
 }
 
+#[derive(PartialEq)]
 pub enum BaseCells{
     TextCell(),
     NumericCell(NumericCell),
 }
 
+#[derive(PartialEq)]
 pub struct ExpressionCell{
-    pub value: Option<BaseCells>,
+    pub value: Option<i32>,
     pub evaluated: bool
 }
 
@@ -30,6 +34,7 @@ pub struct GenericFields{
     pub cell_type: CellType
 }
 
+#[derive(PartialEq)]
 pub enum SpecificCell {
     BaseCells(BaseCells),
     ExpressionCell(ExpressionCell),
@@ -55,26 +60,6 @@ impl TableExt for Table {
 
     fn at(&self, x: usize, y: usize) -> &Cell {
         return &self.cells[x][y];
-    } 
-}
-
-pub trait CellExt {
-    fn get_expr_value(&self) -> i32;
-}
-
-impl CellExt for Cell {
-
-    fn get_expr_value(&self) -> i32 {
-        match &self.specs {
-            SpecificCell::BaseCells(BaseCells::NumericCell(v)) => 
-            {
-                println!("get_expr_value {}", v.value);
-                return v.value;
-            }
-            other => {
-                return 0;
-            }
-        }
     } 
 }
 
