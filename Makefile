@@ -5,4 +5,4 @@ build:
 	cargo build
 
 watch:
-	cargo watch -q -c -w src -x 'run -q'
+	cargo watch -q -c -w src -w input.csv -x 'run -q'

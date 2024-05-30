@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 pub mod utils;
+
 use crate::utils::StringExt;
 
 pub mod structs;
@@ -34,6 +35,7 @@ fn get_table_from_content(content: &str) -> std::io::Result<(Table, HashMap<Stri
         panic!("ERROR: file is empty");
     }
     let (size_x, size_y) = get_table_size(content);
+    let valid_header = "A".to_string().."Z".to_string();
 
     let mut column_index = HashMap::new();
     let mut table = Vec::new();
@@ -42,11 +44,19 @@ fn get_table_from_content(content: &str) -> std::io::Result<(Table, HashMap<Stri
         let mut row_cells = Vec::new();
         let mut last_col = 0;
         for (col, e) in el.split('|').enumerate() {
-            if row == 0 {
-                column_index.insert(e.to_string().trim_whitespaces(), col);
-            }
+            let mut cell_content = e.to_string().trim_whitespaces();
 
-            let cell_content = e.to_string().trim_whitespaces();
+            if row == 0 {
+                cell_content = cell_content.to_uppercase();
+                if cell_content.is_empty() {
+                    panic!("ERROR: the file header should not contain empty values.");
+                }
+                if !valid_header.contains(&cell_content) {
+                    panic!("ERROR: {cell_content} is not a valid value for an header.");
+                } else {
+                    column_index.insert(cell_content.clone(), col);
+                }
+            }
 
             if cell_content.is_empty() {
                 row_cells.push(structs::new_empty_cell(row, col));
@@ -80,7 +90,7 @@ fn get_table_from_content(content: &str) -> std::io::Result<(Table, HashMap<Stri
 fn eval_cell(left: &String, table: &mut Table, col_index: &HashMap<String, usize>) -> i32 {
     println!("Evaluating {left}");
     let (letter, n) = left.split_at(1);
-    match col_index.get(letter) {
+    match col_index.get(&letter.to_uppercase()) {
         Some(&r) => {
             let cell_y = n.parse::<usize>().unwrap();
             let cell = table.at(r, cell_y);
@@ -106,7 +116,10 @@ fn eval_cell(left: &String, table: &mut Table, col_index: &HashMap<String, usize
             value
         }
         None => {
-            panic!("Error: letter {} not found in hasmap", letter);
+            panic!(
+                "Error: letter {} not found in hasmap",
+                &letter.to_uppercase()
+            );
         }
     }
 }
