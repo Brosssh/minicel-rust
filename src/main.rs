@@ -80,12 +80,11 @@ fn get_table_from_content(content :&str) -> std::io::Result<(Table, HashMap<Stri
     Ok((table, column_index))
 }
 
-fn eval_cell<'a>(left: &String,table:  &mut Table, col_index: &HashMap<String, usize>) -> i32{
+fn eval_cell(left: &String,table:  &mut Table, col_index: &HashMap<String, usize>) -> i32{
     println!("Evaluating {left}");
     let (letter, n) = left.split_at(1);
     match col_index.get(letter){
         Some(&r) => {
-            println!("Found letter {:?}, result {:?}", letter, r);
             let cell_y = n.parse::<usize>().unwrap();
             let cell = table.at(r, cell_y);
             let mut value = 0;
@@ -93,22 +92,20 @@ fn eval_cell<'a>(left: &String,table:  &mut Table, col_index: &HashMap<String, u
             match &cell.specs{
                 structs::SpecificCell::BaseCells(structs::BaseCells::NumericCell(v)) => 
                 {
-                    println!("get_expr_value {}", v.value);
                     value = v.value;
                 },
                 structs::SpecificCell::ExpressionCell(v) => 
                 {
                     if !v.value.is_none() {
-                        println!("get_expr_value {}", v.value.unwrap());
                         value = v.value.unwrap();
                     }
                     else if !v.evaluated{
                         let expr_string = &cell.generics.string_content[1..].to_string();
-                        value = eval_expr(r ,cell_y , expr_string , table, col_index);
+                        value = eval_expr(r ,cell_y , expr_string , table, col_index, true);
                         println!("Setting value {} for cell",value);
                     }else{
                         //is evaluated but none value
-                        //panic!("ERROR: could not evaluate cell {}", cell);
+                        panic!("ERROR: could not evaluate cell {}", cell);
                     }
                 },
                 _ => ()
@@ -123,28 +120,39 @@ fn eval_cell<'a>(left: &String,table:  &mut Table, col_index: &HashMap<String, u
     }
 }
 
-fn eval_expr(cell_x: usize, cell_y: usize , e: &String, table: &mut Table, col_index: &HashMap<String, usize>) -> i32{
+fn eval_expr(cell_x: usize, cell_y: usize , e: &String, table: &mut Table, col_index: &HashMap<String, usize>, set_result: bool) -> i32{
+    println!("Evaluatiing expr {}", e);
+
+    let cell = table.at(cell_x, cell_y);
+    let c = cast!(&cell.specs, structs::SpecificCell::ExpressionCell);
+    if let Some(r) = c.value{
+        println!("{cell} is already evaluated");
+        return r;
+    }
+
     let mut total = 0;
     println!("Evaluatiing expr {}", e);
     match e.split_once("+") { 
         Some((left, right)) => {
             println!("Splitting result : left {}, right {}",left, right);
             total += eval_cell(&left.to_string(), table, &col_index);
-            total += eval_expr(cell_x, cell_y, &right.to_string(), table, &col_index);
-    },
+            total += eval_expr(cell_x, cell_y, &right.to_string(), table, &col_index, false);
+    }, 
         None => {
             total += eval_cell(&e.to_string(), table, &col_index)
         }
     }
+    
+    if set_result == true {
+        let cell = table.at_mut(cell_x, cell_y);
+        let base_cell =cast!(&mut cell.specs, structs::SpecificCell::ExpressionCell);
 
-    let cell = table.at_mut(cell_x, cell_y);
+        base_cell.evaluated=true;
+        base_cell.value=Some(total);
 
-    if let structs::SpecificCell::ExpressionCell(v) = &mut cell.specs{
-        v.evaluated=true;
-        v.value=Some(total);
+        println!("Set result for cell {}", cell);
     }
-    println!("Set result for cell {}", cell);
-
+    
     return total;
 }
 
@@ -157,10 +165,8 @@ fn main() -> std::io::Result<()>{
         for y in 0..table.size_y{
             let cell = table.at(x, y); 
             if let structs::SpecificCell::ExpressionCell(_) = &cell.specs{
-                    println!("Starting evaluation of cell {cell}, at pos {x},{y}");
-                    let expr_string = &cell.generics.string_content[1..].to_string();
-                    let r = eval_expr(x, y, expr_string, &mut evaluated_table, &col_index);
-                    println!("Cell {}: {}", cell, r);         
+                let expr_string = &cell.generics.string_content[1..].to_string();
+                eval_expr(x, y, expr_string, &mut evaluated_table, &col_index, true);
             }
         }
     } 
