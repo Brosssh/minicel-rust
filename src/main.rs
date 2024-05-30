@@ -7,6 +7,7 @@ use crate::utils::StringExt;
 
 pub mod structs;
 use crate::structs::Table;
+use crate::structs::Cell;
 use crate::structs::TableExt;
 
 fn read_file(path :&str) -> std::io::Result<String> {
@@ -70,24 +71,27 @@ fn get_table_from_content(content :&str) -> std::io::Result<(Table, HashMap<Stri
         }
         table.push(row_cells);
     }
-    Ok((Table{
-            cells: table,
-            size_x: size_x,
-            size_y: size_y,
-    }, column_index))
+
+    let table = Table{
+        cells: table,
+        size_x: size_x,
+        size_y: size_y,
+    };
+
+    Ok((table, column_index))
 }
 
-fn eval_cell(left: &String, table: &Table, col_index: &HashMap<String, usize>) -> i32{
+fn eval_cell<'a>(left: &String,table:  &mut Table, col_index: &HashMap<String, usize>) -> i32{
     println!("Evaluating {left}");
     let (letter, n) = left.split_at(1);
     match col_index.get(letter){
         Some(&r) => {
             println!("Found letter {:?}, result {:?}", letter, r);
-            let cell = table.at(n.parse::<usize>().unwrap(), r);
-            println!("Found cell {}", cell);
+            let cell_x = n.parse::<usize>().unwrap();
+            let cell = table.at(cell_x, r);
             let mut value = 0;
             
-            match &cell.specs {
+            match &cell.specs{
                 structs::SpecificCell::BaseCells(structs::BaseCells::NumericCell(v)) => 
                 {
                     println!("get_expr_value {}", v.value);
@@ -100,10 +104,12 @@ fn eval_cell(left: &String, table: &Table, col_index: &HashMap<String, usize>) -
                         value = v.value.unwrap();
                     }
                     else if !v.evaluated{
-                        value = eval_expr(&cell.generics.string_content[1..].to_string(), table, col_index);
+                        let expr_string = &cell.generics.string_content[1..].to_string();
+                        value = eval_expr(cell_x ,r , expr_string , table, col_index);
+                        println!("Setting value {} for cell",value);
                     }else{
                         //is evaluated but none value
-                        panic!("ERROR: could not evaluate cell {}", cell);
+                        //panic!("ERROR: could not evaluate cell {}", cell);
                     }
                 },
                 _ => ()
@@ -118,43 +124,53 @@ fn eval_cell(left: &String, table: &Table, col_index: &HashMap<String, usize>) -
     }
 }
 
-fn eval_expr(e: &String, table: &Table, col_index: &HashMap<String, usize>) -> i32{
-    println!("Evaluatiing expr {}", e);
+fn eval_expr(cell_x: usize, cell_y: usize , e: &String, table: &mut Table, col_index: &HashMap<String, usize>) -> i32{
     let mut total = 0;
-    match e.split_once("+") {
+    println!("Evaluatiing expr {}", e);
+    match e.split_once("+") { 
         Some((left, right)) => {
             println!("Splitting result : left {}, right {}",left, right);
-            total += eval_cell(&left.to_string(), &table, &col_index);
-            total += eval_expr(&right.to_string(), &table, &col_index);
+            total += eval_cell(&left.to_string(), table, &col_index);
+            total += eval_expr(cell_x, cell_y, &right.to_string(), table, &col_index);
     },
         None => {
-            total += eval_cell(&e.to_string(), &table, &col_index)
+            total += eval_cell(&e.to_string(), table, &col_index)
         }
     }
-    println!("Result of expr {}: {}", e, total);
+
+    let mut cell = table.at_mut(cell_x, cell_y);
+
+    if let structs::SpecificCell::ExpressionCell(v) = &mut cell.specs{
+        v.evaluated=true;
+        v.value=Some(total);
+    }
+    println!("Set result for cell {}", cell);
+
     return total;
 }
 
-fn evaluate_expressions(table: Table, col_index: HashMap<String, usize>){    
-    for el in table.cells.iter(){
-        for e in el.iter(){
-            match &e.specs {
+
+fn main() -> std::io::Result<()>{
+    let content = read_file("input.csv").unwrap();
+    let (mut table, col_index) = get_table_from_content(&content).unwrap();
+    let mut table_clone = table.clone();
+    for x in 0..table.size_x-1{
+        for y in 0..table.size_y-1{
+            let cell = table.at(x, y); 
+            match &cell.specs {
                 structs::SpecificCell::ExpressionCell(el) => 
                 {
-                    let r = eval_expr(&e.generics.string_content[1..].to_string(), &table, &col_index);
-                    println!("Cell {}: {}", e, r);
-                    //TODO table replacing
+                    println!("Starting evaluation of cell {cell}, at pos {x},{y}");
+                    let expr_string = &cell.generics.string_content[1..].to_string();
+                    let r = eval_expr(x, y, expr_string, &mut table_clone, &col_index);
+                    println!("Cell {}: {}", cell, r);
                 },
                 _ => ()            
             }
         }
     }
-}
 
-fn main() -> std::io::Result<()>{
-    let content = read_file("input.csv").unwrap();
-    let (table, col_index) = get_table_from_content(&content).unwrap();
-    println!("{}", table);
-    evaluate_expressions(table, col_index);
+    println!("{}", table_clone);
+
     Ok(())
 }

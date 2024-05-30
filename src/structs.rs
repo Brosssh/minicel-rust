@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub enum CellType {
     Numeric,
     Text,
@@ -5,7 +6,7 @@ pub enum CellType {
     Empty
 }
 
-#[derive(PartialEq)]
+#[derive(Clone)]
 pub struct NumericCell{
     pub value: i32,
 }
@@ -15,18 +16,19 @@ pub enum BaseValueType{
     String,
 }
 
-#[derive(PartialEq)]
+#[derive(Clone)]
 pub enum BaseCells{
     TextCell(),
     NumericCell(NumericCell),
 }
 
-#[derive(PartialEq)]
+#[derive(Clone)]
 pub struct ExpressionCell{
     pub value: Option<i32>,
     pub evaluated: bool
 }
 
+#[derive(Clone)]
 pub struct GenericFields{
     pub pos_x: usize,
     pub pos_y: usize,
@@ -34,18 +36,20 @@ pub struct GenericFields{
     pub cell_type: CellType
 }
 
-#[derive(PartialEq)]
+#[derive(Clone)]
 pub enum SpecificCell {
     BaseCells(BaseCells),
     ExpressionCell(ExpressionCell),
     EmptyCell()
-  }
+}
 
+#[derive(Clone)]
 pub struct Cell{
     pub specs: SpecificCell,
     pub generics: GenericFields,
 }
 
+#[derive(Clone)]
 pub struct Table{
     pub cells: Vec<Vec<Cell>>,
     pub size_x: usize,
@@ -54,6 +58,8 @@ pub struct Table{
 
 pub trait TableExt {
     fn at(&self, x: usize, y: usize) -> &Cell;
+    fn at_mut(&mut self, x: usize, y: usize) -> &mut Cell;
+
 }
 
 impl TableExt for Table {
@@ -61,6 +67,11 @@ impl TableExt for Table {
     fn at(&self, x: usize, y: usize) -> &Cell {
         return &self.cells[x][y];
     } 
+
+    fn at_mut(&mut self, x: usize, y: usize) -> &mut Cell {
+        return &mut self.cells[x][y];
+    } 
+
 }
 
 pub fn new_empty_cell(x: usize, y: usize) -> Cell {
@@ -129,7 +140,15 @@ impl ToString for CellType {
 
 impl std::fmt::Display for Cell {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}({})", self.generics.cell_type.to_string(), self.generics.string_content)
+        if let SpecificCell::ExpressionCell(v) = &self.specs{
+            if let Some(result) = v.value{
+                write!(f, "{}({})={}", self.generics.cell_type.to_string(), self.generics.string_content, result)  
+            }else{
+                write!(f, "{}({})=?", self.generics.cell_type.to_string(), self.generics.string_content)  
+            }
+        }else{
+            write!(f, "{}({})", self.generics.cell_type.to_string(), self.generics.string_content)
+        }
     }
 }
 
