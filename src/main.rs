@@ -7,7 +7,6 @@ use crate::utils::StringExt;
 
 pub mod structs;
 use crate::structs::Table;
-use crate::structs::Cell;
 use crate::structs::TableExt;
 
 fn read_file(path :&str) -> std::io::Result<String> {
@@ -87,8 +86,8 @@ fn eval_cell<'a>(left: &String,table:  &mut Table, col_index: &HashMap<String, u
     match col_index.get(letter){
         Some(&r) => {
             println!("Found letter {:?}, result {:?}", letter, r);
-            let cell_x = n.parse::<usize>().unwrap();
-            let cell = table.at(cell_x, r);
+            let cell_y = n.parse::<usize>().unwrap();
+            let cell = table.at(r, cell_y);
             let mut value = 0;
             
             match &cell.specs{
@@ -105,7 +104,7 @@ fn eval_cell<'a>(left: &String,table:  &mut Table, col_index: &HashMap<String, u
                     }
                     else if !v.evaluated{
                         let expr_string = &cell.generics.string_content[1..].to_string();
-                        value = eval_expr(cell_x ,r , expr_string , table, col_index);
+                        value = eval_expr(r ,cell_y , expr_string , table, col_index);
                         println!("Setting value {} for cell",value);
                     }else{
                         //is evaluated but none value
@@ -138,7 +137,7 @@ fn eval_expr(cell_x: usize, cell_y: usize , e: &String, table: &mut Table, col_i
         }
     }
 
-    let mut cell = table.at_mut(cell_x, cell_y);
+    let cell = table.at_mut(cell_x, cell_y);
 
     if let structs::SpecificCell::ExpressionCell(v) = &mut cell.specs{
         v.evaluated=true;
@@ -152,25 +151,21 @@ fn eval_expr(cell_x: usize, cell_y: usize , e: &String, table: &mut Table, col_i
 
 fn main() -> std::io::Result<()>{
     let content = read_file("input.csv").unwrap();
-    let (mut table, col_index) = get_table_from_content(&content).unwrap();
-    let mut table_clone = table.clone();
-    for x in 0..table.size_x-1{
-        for y in 0..table.size_y-1{
+    let (table, col_index) = get_table_from_content(&content).unwrap();
+    let mut evaluated_table = table.clone();
+    for x in 0..table.size_x{
+        for y in 0..table.size_y{
             let cell = table.at(x, y); 
-            match &cell.specs {
-                structs::SpecificCell::ExpressionCell(el) => 
-                {
+            if let structs::SpecificCell::ExpressionCell(_) = &cell.specs{
                     println!("Starting evaluation of cell {cell}, at pos {x},{y}");
                     let expr_string = &cell.generics.string_content[1..].to_string();
-                    let r = eval_expr(x, y, expr_string, &mut table_clone, &col_index);
-                    println!("Cell {}: {}", cell, r);
-                },
-                _ => ()            
+                    let r = eval_expr(x, y, expr_string, &mut evaluated_table, &col_index);
+                    println!("Cell {}: {}", cell, r);         
             }
         }
-    }
+    } 
 
-    println!("{}", table_clone);
+    println!("{}", evaluated_table);
 
     Ok(())
 }

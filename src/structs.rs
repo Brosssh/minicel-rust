@@ -11,11 +11,6 @@ pub struct NumericCell{
     pub value: i32,
 }
 
-pub enum BaseValueType{
-    i32,
-    String,
-}
-
 #[derive(Clone)]
 pub enum BaseCells{
     TextCell(),
@@ -65,11 +60,11 @@ pub trait TableExt {
 impl TableExt for Table {
 
     fn at(&self, x: usize, y: usize) -> &Cell {
-        return &self.cells[x][y];
+        return &self.cells[y][x];
     } 
 
     fn at_mut(&mut self, x: usize, y: usize) -> &mut Cell {
-        return &mut self.cells[x][y];
+        return &mut self.cells[y][x];
     } 
 
 }
