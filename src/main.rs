@@ -87,7 +87,8 @@ fn get_table_from_content(content: &str) -> std::io::Result<(Table, HashMap<Stri
     Ok((table, column_index))
 }
 
-fn eval_cell(left: &String, table: &mut Table, col_index: &HashMap<String, usize>) -> i32 {
+fn eval_cell(left: &str, table: &mut Table, col_index: &HashMap<String, usize>) -> i32 {
+    #[cfg(test)]
     println!("Evaluating {left}");
     let (letter, n) = left.split_at(1);
     match col_index.get(&letter.to_uppercase()) {
@@ -136,11 +137,13 @@ fn eval_expr(
     col_index: &HashMap<String, usize>,
     set_result: bool,
 ) -> i32 {
-    println!("Evaluatiing expr {}", e);
+    #[cfg(test)]
+    println!("Evaluation expr {}", e);
 
     let cell = table.at_mut(cell_x, cell_y);
     let c = cast!(&mut cell.specs, structs::SpecificCell::ExpressionCell);
     if let Some(r) = c.value {
+        #[cfg(test)]
         println!("{cell} is already evaluated");
         return r;
     }
@@ -150,8 +153,9 @@ fn eval_expr(
     let mut total = 0;
     match e.split_once('+') {
         Some((left, right)) => {
+            #[cfg(test)]
             println!("Splitting result : left {}, right {}", left, right);
-            total += eval_cell(&left.to_string(), table, col_index);
+            total += eval_cell(left, table, col_index);
             total += eval_expr(cell_x, cell_y, &right.to_string(), table, col_index, false);
         }
         None => total += eval_cell(&e.to_string(), table, col_index),
@@ -164,6 +168,7 @@ fn eval_expr(
         base_cell.evaluated = structs::EvalutedType::Ok;
         base_cell.value = Some(total);
 
+        #[cfg(test)]
         println!("Set result for cell {}", cell);
     }
 
@@ -187,4 +192,9 @@ fn main() -> std::io::Result<()> {
     println!("{}", evaluated_table);
 
     Ok(())
+}
+
+#[test]
+fn test_main() -> std::io::Result<()> {
+    main()
 }
