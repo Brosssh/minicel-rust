@@ -94,7 +94,7 @@ fn eval_cell(left: &String, table: &mut Table, col_index: &HashMap<String, usize
         Some(&r) => {
             let cell_y = n.parse::<usize>().unwrap();
             let cell = table.at(r, cell_y);
-            let mut value = 0;
+            let value;
 
             match &cell.specs {
                 structs::SpecificCell::BaseCells(structs::BaseCells::NumericCell(v)) => {
@@ -103,21 +103,25 @@ fn eval_cell(left: &String, table: &mut Table, col_index: &HashMap<String, usize
                 structs::SpecificCell::ExpressionCell(v) => {
                     if v.value.is_some() {
                         value = v.value.unwrap();
-                    } else if !v.evaluated {
+                    } else if v.evaluated == structs::EvalutedType::ToEvaluate {
                         let expr_string = &cell.generics.string_content[1..].to_string();
                         value = eval_expr(r, cell_y, expr_string, table, col_index, true);
+                    } else if v.evaluated == structs::EvalutedType::InProgress {
+                        panic!("ERROR: infinite loop detected at cell {}", cell);
                     } else {
                         //is evaluated but none value
                         panic!("ERROR: could not evaluate cell {}", cell);
                     }
                 }
-                _ => (),
+                _ => {
+                    panic!("ERROR: could not evaluate cell {}", cell);
+                }
             }
             value
         }
         None => {
             panic!(
-                "Error: letter {} not found in hasmap",
+                "ERROR: letter {} not found in header",
                 &letter.to_uppercase()
             );
         }
@@ -134,15 +138,16 @@ fn eval_expr(
 ) -> i32 {
     println!("Evaluatiing expr {}", e);
 
-    let cell = table.at(cell_x, cell_y);
-    let c = cast!(&cell.specs, structs::SpecificCell::ExpressionCell);
+    let cell = table.at_mut(cell_x, cell_y);
+    let c = cast!(&mut cell.specs, structs::SpecificCell::ExpressionCell);
     if let Some(r) = c.value {
         println!("{cell} is already evaluated");
         return r;
     }
 
+    c.evaluated = structs::EvalutedType::InProgress;
+
     let mut total = 0;
-    println!("Evaluatiing expr {}", e);
     match e.split_once('+') {
         Some((left, right)) => {
             println!("Splitting result : left {}, right {}", left, right);
@@ -156,7 +161,7 @@ fn eval_expr(
         let cell = table.at_mut(cell_x, cell_y);
         let base_cell = cast!(&mut cell.specs, structs::SpecificCell::ExpressionCell);
 
-        base_cell.evaluated = true;
+        base_cell.evaluated = structs::EvalutedType::Ok;
         base_cell.value = Some(total);
 
         println!("Set result for cell {}", cell);

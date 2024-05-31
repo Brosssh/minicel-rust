@@ -6,6 +6,14 @@ pub enum CellType {
     Empty,
 }
 
+#[derive(Clone, PartialEq, Eq)]
+pub enum EvalutedType {
+    Ok,
+    Err,
+    InProgress,
+    ToEvaluate,
+}
+
 #[derive(Clone)]
 pub struct NumericCell {
     pub value: i32,
@@ -20,7 +28,7 @@ pub enum BaseCells {
 #[derive(Clone)]
 pub struct ExpressionCell {
     pub value: Option<i32>,
-    pub evaluated: bool,
+    pub evaluated: EvalutedType,
 }
 
 #[derive(Clone)]
@@ -120,7 +128,7 @@ pub fn new_expression_cell(x: usize, y: usize, string_content: String) -> Cell {
             }
         },
         specs: SpecificCell::ExpressionCell(ExpressionCell {
-            evaluated: false,
+            evaluated: EvalutedType::ToEvaluate,
             value: None,
         }),
     }
