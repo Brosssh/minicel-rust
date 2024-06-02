@@ -87,21 +87,18 @@ fn get_table_from_content(content: &str) -> std::io::Result<(Table, HashMap<Stri
     Ok((table, column_index))
 }
 
-fn eval_cell(left: &str, table: &mut Table, col_index: &HashMap<String, usize>) -> i32 {
+fn eval_string_cell(left: &str, table: &mut Table, col_index: &HashMap<String, usize>) -> i32 {
     #[cfg(test)]
     println!("Evaluating {left}");
     let cell = table.get_cell_by_str_ref(left, col_index);
-    let value;
 
     match &cell.specs {
-        structs::SpecificCell::BaseCells(structs::BaseCells::NumericCell(v)) => {
-            value = v.value;
-        }
+        structs::SpecificCell::BaseCells(structs::BaseCells::NumericCell(v)) => v.value,
         structs::SpecificCell::ExpressionCell(v) => {
-            if v.value.is_some() {
-                value = v.value.unwrap();
+            if let Some(x) = v.value {
+                x
             } else if v.evaluated == structs::EvalutedType::ToEvaluate {
-                value = evaluate(cell.generics.pos_x, cell.generics.pos_y, table, col_index);
+                evaluate(cell.generics.pos_x, cell.generics.pos_y, table, col_index)
             } else if v.evaluated == structs::EvalutedType::InProgress {
                 panic!("ERROR: infinite loop detected at cell {}", cell);
             } else {
@@ -113,7 +110,6 @@ fn eval_cell(left: &str, table: &mut Table, col_index: &HashMap<String, usize>) 
             panic!("ERROR: could not evaluate cell {}", cell);
         }
     }
-    value
 }
 
 fn eval_string_expr(expr: &str, table: &mut Table, col_index: &HashMap<String, usize>) -> i32 {
@@ -121,11 +117,11 @@ fn eval_string_expr(expr: &str, table: &mut Table, col_index: &HashMap<String, u
         Some((left, right)) => {
             #[cfg(test)]
             println!("Splitting result : left {}, right {}", left, right);
-            let mut total = eval_cell(left, table, col_index);
+            let mut total = eval_string_cell(left, table, col_index);
             total += eval_string_expr(right, table, col_index);
             total
         }
-        None => eval_cell(expr, table, col_index),
+        None => eval_string_cell(expr, table, col_index),
     }
 }
 
