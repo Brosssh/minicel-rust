@@ -59,20 +59,20 @@ fn get_table_from_content(content: &str) -> std::io::Result<(Table, HashMap<Stri
             }
 
             if cell_content.is_empty() {
-                row_cells.push(structs::new_empty_cell(row, col));
+                row_cells.push(structs::new_empty_cell(col, row));
             } else if !cell_content.is_empty() && cell_content.starts_with('=') {
-                row_cells.push(structs::new_expression_cell(row, col, cell_content));
+                row_cells.push(structs::new_expression_cell(col, row, cell_content));
             } else {
                 match cell_content.parse::<i32>() {
-                    Ok(n) => row_cells.push(structs::new_numeric_cell(row, col, cell_content, n)),
-                    Err(_) => row_cells.push(structs::new_text_cell(row, col, cell_content)),
+                    Ok(n) => row_cells.push(structs::new_numeric_cell(col, row, cell_content, n)),
+                    Err(_) => row_cells.push(structs::new_text_cell(col, row, cell_content)),
                 }
             }
             last_col = col;
         }
 
         while last_col < size_x - 1 {
-            row_cells.push(structs::new_empty_cell(row, last_col));
+            row_cells.push(structs::new_empty_cell(last_col, row));
             last_col += 1;
         }
         table.push(row_cells);
@@ -103,8 +103,8 @@ fn eval_cell(left: &str, table: &mut Table, col_index: &HashMap<String, usize>) 
             } else if v.evaluated == structs::EvalutedType::ToEvaluate {
                 let expr_string = &cell.generics.string_content[1..].to_string();
                 value = eval_expr(
-                    cell.generics.pos_y,
                     cell.generics.pos_x,
+                    cell.generics.pos_y,
                     expr_string,
                     table,
                     col_index,
