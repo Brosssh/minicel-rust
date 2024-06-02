@@ -101,15 +101,7 @@ fn eval_cell(left: &str, table: &mut Table, col_index: &HashMap<String, usize>) 
             if v.value.is_some() {
                 value = v.value.unwrap();
             } else if v.evaluated == structs::EvalutedType::ToEvaluate {
-                let expr_string = &cell.generics.string_content[1..].to_string();
-                value = eval_expr(
-                    cell.generics.pos_x,
-                    cell.generics.pos_y,
-                    expr_string,
-                    table,
-                    col_index,
-                    true,
-                );
+                value = evaluate(cell.generics.pos_x, cell.generics.pos_y, table, col_index);
             } else if v.evaluated == structs::EvalutedType::InProgress {
                 panic!("ERROR: infinite loop detected at cell {}", cell);
             } else {
@@ -124,17 +116,25 @@ fn eval_cell(left: &str, table: &mut Table, col_index: &HashMap<String, usize>) 
     value
 }
 
-fn eval_expr(
+fn eval_string_expr(expr: &str, table: &mut Table, col_index: &HashMap<String, usize>) -> i32 {
+    match expr.split_once('+') {
+        Some((left, right)) => {
+            #[cfg(test)]
+            println!("Splitting result : left {}, right {}", left, right);
+            let mut total = eval_cell(left, table, col_index);
+            total += eval_string_expr(right, table, col_index);
+            total
+        }
+        None => eval_cell(expr, table, col_index),
+    }
+}
+
+fn evaluate(
     cell_x: usize,
     cell_y: usize,
-    e: &String,
     table: &mut Table,
     col_index: &HashMap<String, usize>,
-    set_result: bool,
 ) -> i32 {
-    #[cfg(test)]
-    println!("Evaluation expr {}", e);
-
     let cell = table.at_mut(cell_x, cell_y);
     let c = cast!(&mut cell.specs, structs::SpecificCell::ExpressionCell);
     if let Some(r) = c.value {
@@ -142,30 +142,20 @@ fn eval_expr(
         println!("{cell} is already evaluated");
         return r;
     }
-
     c.evaluated = structs::EvalutedType::InProgress;
 
-    let mut total = 0;
-    match e.split_once('+') {
-        Some((left, right)) => {
-            #[cfg(test)]
-            println!("Splitting result : left {}, right {}", left, right);
-            total += eval_cell(left, table, col_index);
-            total += eval_expr(cell_x, cell_y, &right.to_string(), table, col_index, false);
-        }
-        None => total += eval_cell(&e.to_string(), table, col_index),
-    }
+    let cell_content = &cell.generics.string_content[1..].to_string();
 
-    if set_result {
-        let cell = table.at_mut(cell_x, cell_y);
-        let base_cell = cast!(&mut cell.specs, structs::SpecificCell::ExpressionCell);
+    let total = eval_string_expr(cell_content, table, col_index);
 
-        base_cell.evaluated = structs::EvalutedType::Ok;
-        base_cell.value = Some(total);
+    let cell = table.at_mut(cell_x, cell_y);
+    let base_cell = cast!(&mut cell.specs, structs::SpecificCell::ExpressionCell);
 
-        #[cfg(test)]
-        println!("Set result for cell {}", cell);
-    }
+    base_cell.evaluated = structs::EvalutedType::Ok;
+    base_cell.value = Some(total);
+
+    #[cfg(test)]
+    println!("Set result for cell {}", cell);
 
     total
 }
@@ -178,8 +168,7 @@ fn main() -> std::io::Result<()> {
         for y in 0..table.size_y {
             let cell = table.at(x, y);
             if let structs::SpecificCell::ExpressionCell(_) = &cell.specs {
-                let expr_string = &cell.generics.string_content[1..].to_string();
-                eval_expr(x, y, expr_string, &mut evaluated_table, &col_index, true);
+                evaluate(x, y, &mut evaluated_table, &col_index);
             }
         }
     }
