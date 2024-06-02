@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[derive(Clone)]
 pub enum CellType {
     Numeric,
@@ -62,6 +64,11 @@ pub struct Table {
 pub trait TableExt {
     fn at(&self, x: usize, y: usize) -> &Cell;
     fn at_mut(&mut self, x: usize, y: usize) -> &mut Cell;
+    fn get_cell_by_str_ref(
+        &mut self,
+        str_ref: &str,
+        col_index: &HashMap<String, usize>,
+    ) -> &mut Cell;
 }
 
 impl TableExt for Table {
@@ -71,6 +78,27 @@ impl TableExt for Table {
 
     fn at_mut(&mut self, x: usize, y: usize) -> &mut Cell {
         &mut self.cells[y][x]
+    }
+
+    fn get_cell_by_str_ref(
+        &mut self,
+        str_ref: &str,
+        col_index: &HashMap<String, usize>,
+    ) -> &mut Cell {
+        if str_ref.len() < 2 {
+            panic!("ERROR: {str_ref} is not a valid reference to a cell.")
+        }
+        let (letter, numbers) = str_ref.split_at(1);
+
+        let &r = col_index
+            .get(&letter.to_uppercase())
+            .unwrap_or_else(|| panic!("ERROR: {str_ref} is not a valid reference to a cell."));
+
+        let cell_y = numbers
+            .parse::<usize>()
+            .unwrap_or_else(|_| panic!("ERROR: {str_ref} is not a valid reference to a cell."));
+
+        self.at_mut(r, cell_y)
     }
 }
 

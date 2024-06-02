@@ -90,43 +90,38 @@ fn get_table_from_content(content: &str) -> std::io::Result<(Table, HashMap<Stri
 fn eval_cell(left: &str, table: &mut Table, col_index: &HashMap<String, usize>) -> i32 {
     #[cfg(test)]
     println!("Evaluating {left}");
-    let (letter, n) = left.split_at(1);
-    match col_index.get(&letter.to_uppercase()) {
-        Some(&r) => {
-            let cell_y = n.parse::<usize>().unwrap();
-            let cell = table.at(r, cell_y);
-            let value;
+    let cell = table.get_cell_by_str_ref(left, col_index);
+    let value;
 
-            match &cell.specs {
-                structs::SpecificCell::BaseCells(structs::BaseCells::NumericCell(v)) => {
-                    value = v.value;
-                }
-                structs::SpecificCell::ExpressionCell(v) => {
-                    if v.value.is_some() {
-                        value = v.value.unwrap();
-                    } else if v.evaluated == structs::EvalutedType::ToEvaluate {
-                        let expr_string = &cell.generics.string_content[1..].to_string();
-                        value = eval_expr(r, cell_y, expr_string, table, col_index, true);
-                    } else if v.evaluated == structs::EvalutedType::InProgress {
-                        panic!("ERROR: infinite loop detected at cell {}", cell);
-                    } else {
-                        //is evaluated but none value
-                        panic!("ERROR: could not evaluate cell {}", cell);
-                    }
-                }
-                _ => {
-                    panic!("ERROR: could not evaluate cell {}", cell);
-                }
-            }
-            value
+    match &cell.specs {
+        structs::SpecificCell::BaseCells(structs::BaseCells::NumericCell(v)) => {
+            value = v.value;
         }
-        None => {
-            panic!(
-                "ERROR: letter {} not found in header",
-                &letter.to_uppercase()
-            );
+        structs::SpecificCell::ExpressionCell(v) => {
+            if v.value.is_some() {
+                value = v.value.unwrap();
+            } else if v.evaluated == structs::EvalutedType::ToEvaluate {
+                let expr_string = &cell.generics.string_content[1..].to_string();
+                value = eval_expr(
+                    cell.generics.pos_y,
+                    cell.generics.pos_x,
+                    expr_string,
+                    table,
+                    col_index,
+                    true,
+                );
+            } else if v.evaluated == structs::EvalutedType::InProgress {
+                panic!("ERROR: infinite loop detected at cell {}", cell);
+            } else {
+                //is evaluated but none value
+                panic!("ERROR: could not evaluate cell {}", cell);
+            }
+        }
+        _ => {
+            panic!("ERROR: could not evaluate cell {}", cell);
         }
     }
+    value
 }
 
 fn eval_expr(
