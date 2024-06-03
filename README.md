@@ -5,13 +5,13 @@ Taking inspiration from [this video](https://www.youtube.com/watch?v=HCAgvKQDJng
 ```
 A           | B             | C
 1           | 2             | Hello
-3           | 4             | World
+=A3         | 4             | World
 =A1+B1+10   | =A2+B2        |=C1+", "+C2
 ```     
 And outputs:
 ```
 A      | B      | C
 1      | 2      | Hello
-3      | 4      | World
-13     | 7      | Hello, World
+13     | 4      | World
+13     | 17     | Hello, World
 ```
