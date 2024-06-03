@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops};
 
 #[derive(Clone)]
 pub enum CellType {
@@ -28,8 +28,14 @@ pub enum BaseCells {
 }
 
 #[derive(Clone)]
+pub enum ExpressionCellValueType {
+    Numeric(i32),
+    Str(String),
+}
+
+#[derive(Clone)]
 pub struct ExpressionCell {
-    pub value: Option<i32>,
+    pub value: Option<ExpressionCellValueType>,
     pub evaluated: EvalutedType,
 }
 
@@ -99,6 +105,25 @@ impl TableExt for Table {
             .unwrap_or_else(|_| panic!("ERROR: {str_ref} is not a valid reference to a cell."));
 
         self.at_mut(r, cell_y)
+    }
+}
+
+pub trait AddAssign {
+    fn add_assign(&mut self, rhs: ExpressionCellValueType);
+}
+
+impl ops::AddAssign for ExpressionCellValueType {
+    fn add_assign(&mut self, rhs: ExpressionCellValueType) {
+        match self {
+            ExpressionCellValueType::Numeric(n) => match rhs {
+                ExpressionCellValueType::Numeric(n2) => *n += n2,
+                ExpressionCellValueType::Str(_) => panic!(),
+            },
+            ExpressionCellValueType::Str(s) => match rhs {
+                ExpressionCellValueType::Str(s2) => *s += &s2,
+                ExpressionCellValueType::Numeric(_) => panic!(),
+            },
+        }
     }
 }
 
@@ -176,13 +201,18 @@ impl ToString for CellType {
 impl std::fmt::Display for Cell {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let SpecificCell::ExpressionCell(v) = &self.specs {
-            if let Some(result) = v.value {
+            if let Some(result) = &v.value {
+                let r;
+                match result {
+                    ExpressionCellValueType::Numeric(n) => r = n.to_string(),
+                    ExpressionCellValueType::Str(s) => r = s.to_string(),
+                }
                 write!(
                     f,
                     "{}({})={}",
                     self.generics.cell_type.to_string(),
                     self.generics.string_content,
-                    result
+                    r
                 )
             } else {
                 write!(

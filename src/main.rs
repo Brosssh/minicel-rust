@@ -4,6 +4,8 @@ use std::fs::File;
 use std::io::Read;
 pub mod utils;
 
+use structs::ExpressionCellValueType;
+
 use crate::utils::StringExt;
 
 pub mod structs;
@@ -87,15 +89,45 @@ fn get_table_from_content(content: &str) -> std::io::Result<(Table, HashMap<Stri
     Ok((table, column_index))
 }
 
-fn eval_string_cell(left: &str, table: &mut Table, col_index: &HashMap<String, usize>) -> i32 {
+fn is_string_cell_static(cell_str: &str) -> Option<ExpressionCellValueType> {
+    if cell_str.starts_with('"') && cell_str.ends_with('"') && cell_str.len() >= 2 {
+        #[cfg(test)]
+        println!("{cell_str} will be considered as a static str, not a cell reference");
+        let content = cell_str[1..cell_str.len() - 1].to_string();
+        return Some(ExpressionCellValueType::Str(content));
+    }
+
+    if let Ok(n) = cell_str.parse::<i32>() {
+        println!("{cell_str} will be considered as a static number, not a cell reference");
+        return Some(ExpressionCellValueType::Numeric(n));
+    }
+
+    None
+}
+
+fn eval_string_cell(
+    left: &str,
+    table: &mut Table,
+    col_index: &HashMap<String, usize>,
+) -> ExpressionCellValueType {
     #[cfg(test)]
     println!("Evaluating {left}");
+
+    if let Some(result) = is_string_cell_static(left) {
+        return result;
+    }
+
     let cell = table.get_cell_by_str_ref(left, col_index);
 
     match &cell.specs {
-        structs::SpecificCell::BaseCells(structs::BaseCells::NumericCell(v)) => v.value,
+        structs::SpecificCell::BaseCells(structs::BaseCells::NumericCell(v)) => {
+            ExpressionCellValueType::Numeric(v.value)
+        }
+        structs::SpecificCell::BaseCells(structs::BaseCells::TextCell()) => {
+            ExpressionCellValueType::Str(cell.generics.string_content.clone())
+        }
         structs::SpecificCell::ExpressionCell(v) => {
-            if let Some(x) = v.value {
+            if let Some(x) = v.value.clone() {
                 x
             } else if v.evaluated == structs::EvalutedType::ToEvaluate {
                 evaluate(cell.generics.pos_x, cell.generics.pos_y, table, col_index)
@@ -112,7 +144,11 @@ fn eval_string_cell(left: &str, table: &mut Table, col_index: &HashMap<String, u
     }
 }
 
-fn eval_string_expr(expr: &str, table: &mut Table, col_index: &HashMap<String, usize>) -> i32 {
+fn eval_string_expr(
+    expr: &str,
+    table: &mut Table,
+    col_index: &HashMap<String, usize>,
+) -> ExpressionCellValueType {
     match expr.split_once('+') {
         Some((left, right)) => {
             #[cfg(test)]
@@ -130,10 +166,10 @@ fn evaluate(
     cell_y: usize,
     table: &mut Table,
     col_index: &HashMap<String, usize>,
-) -> i32 {
+) -> ExpressionCellValueType {
     let cell = table.at_mut(cell_x, cell_y);
     let c = cast!(&mut cell.specs, structs::SpecificCell::ExpressionCell);
-    if let Some(r) = c.value {
+    if let Some(r) = c.value.clone() {
         #[cfg(test)]
         println!("{cell} is already evaluated");
         return r;
@@ -148,12 +184,11 @@ fn evaluate(
     let base_cell = cast!(&mut cell.specs, structs::SpecificCell::ExpressionCell);
 
     base_cell.evaluated = structs::EvalutedType::Ok;
-    base_cell.value = Some(total);
+    base_cell.value = Some(total.clone());
 
     #[cfg(test)]
     println!("Set result for cell {}", cell);
-
-    total
+    return total;
 }
 
 fn main() -> std::io::Result<()> {
