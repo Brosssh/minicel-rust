@@ -98,6 +98,7 @@ fn is_string_cell_static(cell_str: &str) -> Option<ExpressionCellValueType> {
     }
 
     if let Ok(n) = cell_str.parse::<i32>() {
+        #[cfg(test)]
         println!("{cell_str} will be considered as a static number, not a cell reference");
         return Some(ExpressionCellValueType::Numeric(n));
     }
@@ -188,7 +189,7 @@ fn evaluate(
 
     #[cfg(test)]
     println!("Set result for cell {}", cell);
-    return total;
+    total
 }
 
 fn main() -> std::io::Result<()> {

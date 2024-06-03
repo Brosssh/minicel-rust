@@ -112,16 +112,26 @@ pub trait AddAssign {
     fn add_assign(&mut self, rhs: ExpressionCellValueType);
 }
 
+macro_rules! panic_at_mismatched_sum {
+    ($target: expr, $pat: path) => {{
+        panic!("ERROR: not possible to sum {} to {}", $target, $pat);
+    }};
+}
+
 impl ops::AddAssign for ExpressionCellValueType {
     fn add_assign(&mut self, rhs: ExpressionCellValueType) {
         match self {
             ExpressionCellValueType::Numeric(n) => match rhs {
                 ExpressionCellValueType::Numeric(n2) => *n += n2,
-                ExpressionCellValueType::Str(_) => panic!(),
+                _ => {
+                    panic_at_mismatched_sum!(self, rhs);
+                }
             },
             ExpressionCellValueType::Str(s) => match rhs {
                 ExpressionCellValueType::Str(s2) => *s += &s2,
-                ExpressionCellValueType::Numeric(_) => panic!(),
+                _ => {
+                    panic_at_mismatched_sum!(self, rhs);
+                }
             },
         }
     }
@@ -202,11 +212,10 @@ impl std::fmt::Display for Cell {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let SpecificCell::ExpressionCell(v) = &self.specs {
             if let Some(result) = &v.value {
-                let r;
-                match result {
-                    ExpressionCellValueType::Numeric(n) => r = n.to_string(),
-                    ExpressionCellValueType::Str(s) => r = s.to_string(),
-                }
+                let r = match result {
+                    ExpressionCellValueType::Numeric(n) => n.to_string(),
+                    ExpressionCellValueType::Str(s) => s.to_string(),
+                };
                 write!(
                     f,
                     "{}({})={}",
@@ -246,5 +255,15 @@ impl std::fmt::Display for Table {
             "Dumped the content of a table {}x{}",
             self.size_x, self.size_y
         )
+    }
+}
+
+impl std::fmt::Display for ExpressionCellValueType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let r = match &self {
+            ExpressionCellValueType::Numeric(n) => format!("{}(Numeric)", n),
+            ExpressionCellValueType::Str(s) => format!("{}(String)", s),
+        };
+        write!(f, "{}", r)
     }
 }
